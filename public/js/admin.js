@@ -88,7 +88,7 @@ function renderStats(stats) {
 function renderUsers(users) {
     const table = document.getElementById('adminUserTable');
     if (!table) return;
-    if (!users || users.length === 0) {
+    if (!Array.isArray(users) || users.length === 0) {
         table.innerHTML = '<tr><td colspan="5" style="text-align:center">No users found</td></tr>';
         return;
     }
