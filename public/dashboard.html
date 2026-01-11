@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoMetric API - Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .navbar-logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .navbar-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .user-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            padding: 8px 16px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background: #ff3838;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .dashboard-header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .dashboard-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-header p {
+            color: #777;
+            font-size: 14px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .api-keys-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .api-keys-panel h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .api-key-item {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .api-key-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .api-key-value {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+            word-break: break-all;
+            background: white;
+            padding: 8px;
+            border-radius: 3px;
+            margin-bottom: 8px;
+        }
+
+        .api-key-actions {
+            display: flex;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .api-key-actions button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .copy-btn {
+            background: #2196F3;
+            color: white;
+        }
+
+        .copy-btn:hover {
+            background: #1976D2;
+        }
+
+        .revoke-btn {
+            background: #ff4757;
+            color: white;
+        }
+
+        .revoke-btn:hover {
+            background: #ff3838;
+        }
+
+        .restore-btn {
+            background: #2ed573;
+            color: white;
+        }
+
+        .restore-btn:hover {
+            background: #26de81;
+        }
+
+        .delete-btn {
+            background: #a4161a;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #800a0a;
+        }
+
+        .archived-section {
+            display: none;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+
+        .archived-section.show {
+            display: block;
+        }
+
+        .archived-section h3 {
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .api-key-item.archived {
+            opacity: 0.6;
+            border-left-color: #ccc;
+        }
+
+        .toggle-archived-btn {
+            width: 100%;
+            padding: 8px;
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .toggle-archived-btn:hover {
+            background: #efefef;
+        }
+
+        .create-key-btn {
+            width: 100%;
+            padding: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+
+        .create-key-btn:hover {
+            background: #5568d3;
+        }
+
+        .test-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .test-panel h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .endpoint-info {
+            background: #f0f4ff;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .send-btn {
+            width: 100%;
+            padding: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .send-btn:hover {
+            background: #5568d3;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .response-box {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .response-box h4 {
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .response-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .view-toggle {
+            padding: 6px 12px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .view-toggle.active {
+            background: #667eea;
+            border-color: #667eea;
+        }
+
+        .view-toggle:hover {
+            background: #444;
+        }
+
+        .copy-response-btn {
+            padding: 6px 12px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .copy-response-btn:hover {
+            background: #1976D2;
+        }
+
+        .response-content {
+            display: none;
+            min-height: 100px;
+        }
+
+        .response-content.active {
+            display: block;
+        }
+
+        .response-box pre {
+            color: #4ec9b0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
+
+        .response-table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #fff;
+            font-size: 12px;
+        }
+
+        .response-table th {
+            background: #333;
+            padding: 8px;
+            text-align: left;
+            border-bottom: 2px solid #667eea;
+            font-weight: 600;
+            color: #4ec9b0;
+        }
+
+        .response-table td {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .response-table tr:hover {
+            background: #2a2a2a;
+        }
+
+        .response-card {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: #2a2a2a;
+            padding: 12px;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+
+        .card-label {
+            color: #999;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .card-value {
+            color: #4ec9b0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .response-error {
+            background: #5a2a2a;
+            color: #ff9999;
+            padding: 12px;
+            border-radius: 5px;
+            border-left: 3px solid #ff4757;
+        }
+
+        .response-chart {
+            color: #4ec9b0;
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            white-space: pre;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #3c3;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.3);
+        }
+
+        .modal-content h3 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .modal-actions .submit-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal-actions .cancel-btn {
+            background: #ddd;
+            color: #333;
+        }
+
+        .no-keys-message {
+            color: #999;
+            text-align: center;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-logo">💱 EcoMetric API</div>
+            <div class="navbar-actions">
+                <div class="user-info" id="userInfo">Welcome!</div>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <h1>Dashboard</h1>
+            <p>Create and manage your API keys, then use them to test the API endpoints</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left: API Keys Panel -->
+            <div class="api-keys-panel">
+                <h2>Your API Keys</h2>
+                <div id="apiKeysList" class="api-keys-list">
+                    <div class="no-keys-message">Loading keys...</div>
+                </div>
+                
+                <div id="archivedKeysSection" class="archived-section">
+                    <h3>📦 Archived Keys</h3>
+                    <div id="archivedKeysList" class="api-keys-list"></div>
+                </div>
+                
+                <button class="toggle-archived-btn" id="toggleArchivedBtn" onclick="toggleArchivedKeys()" style="display: none;">
+                    Show Archived Keys
+                </button>
+                
+                <button class="create-key-btn" onclick="openCreateKeyModal()">+ Create New Key</button>
+            </div>
+
+            <!-- Right: Test Panel -->
+            <div class="test-panel">
+                <h2>Test API Endpoints</h2>
+                
+                <div id="testError" class="error-message"></div>
+                <div id="testSuccess" class="success-message"></div>
+
+                <div class="form-group">
+                    <label>Select API Key:</label>
+                    <select id="apiKeySelect">
+                        <option value="">-- Select API Key --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Endpoint:</label>
+                    <select id="endpointSelect" onchange="updateEndpoint()">
+                        <option value="">-- Choose Endpoint --</option>
+                        <option value="currencies/latest">Currency: Latest Rates</option>
+                        <option value="currencies/history">Currency: Historical Rates</option>
+                        <option value="currencies/supported">Currency: Supported List</option>
+                        <option value="indicators/latest">Indicators: Latest Data</option>
+                        <option value="indicators/search">Indicators: Search</option>
+                        <option value="indicators/countries">Indicators: Supported Countries</option>
+                    </select>
+                </div>
+
+                <div id="endpointInfo" class="endpoint-info" style="display: none;"></div>
+
+                <div id="dynamicParams"></div>
+
+                <button class="send-btn" id="sendBtn" onclick="sendRequest()" disabled>Send Request</button>
+
+                <div class="response-box">
+                    <h4>
+                        Response
+                        <button class="copy-response-btn" onclick="copyResponseToClipboard()">📋 Copy</button>
+                    </h4>
+                    
+                    <div class="response-controls" id="responseControls" style="display: none;">
+                        <button class="view-toggle active" data-view="auto" onclick="switchResponseView('auto')">Auto</button>
+                        <button class="view-toggle" data-view="table" onclick="switchResponseView('table')">Table</button>
+                        <button class="view-toggle" data-view="json" onclick="switchResponseView('json')">JSON</button>
+                    </div>
+
+                    <div id="responseAuto" class="response-content active"></div>
+                    <div id="responseTable" class="response-content"></div>
+                    <div id="responseJson" class="response-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create API Key Modal -->
+    <div id="createKeyModal" class="modal">
+        <div class="modal-content">
+            <h3>Create New API Key</h3>
+            <input type="text" id="keyName" placeholder="Enter API Key name (e.g., Production)" required>
+            <div class="modal-actions">
+                <button class="submit-btn" onclick="submitCreateKey()">Create</button>
+                <button class="cancel-btn" onclick="closeCreateKeyModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
