@@ -1,74 +1,97 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database'); 
+const db = require('../config/database');
+const { verifyToken } = require('../middleware/auth');
 
-// Import middleware dengan destructuring
-const { verifyToken } = require('../middleware/auth'); 
-
-// Middleware untuk proteksi role admin
+// Middleware admin
 const isAdmin = (req, res, next) => {
     if (req.user && req.user.role === 'admin') {
-        next();
-    } else {
-        res.status(403).json({ error: 'Access Denied: Admin only' });
+        return next();
     }
+    return res.status(403).json({
+        status: 'error',
+        message: 'Access denied: Admin only'
+    });
 };
 
-// Route Dashboard Stats
+// Helper aman untuk ambil rows
+const getRows = (result) => {
+    if (!result) return [];
+    if (Array.isArray(result)) return result;
+    if (result.rows) return result.rows;
+    return [];
+};
+
+// Dashboard Stats (FINAL FIX)
 router.get('/dashboard-stats', verifyToken, isAdmin, async (req, res) => {
     try {
-        // 1. Ambil Statistik Ringkas
-        const [uCount] = await db.query('SELECT COUNT(*) as total FROM users');
-        const [aKeys] = await db.query('SELECT COUNT(*) as total FROM api_keys WHERE is_active = 1');
-        const [rKeys] = await db.query('SELECT COUNT(*) as total FROM api_keys WHERE is_active = 0');
+        // 1. Total Users
+        const usersResult = await db.query(
+            "SELECT COUNT(*) AS total FROM users WHERE role = 'user' AND is_active = 1"
+        );
+        const usersRows = getRows(usersResult);
+        const totalUsers = usersRows[0]?.total || 0;
 
-        // 2. Ambil Data User + Hitung Total Key masing-masing (PENTING untuk tabel frontend)
-        const [users] = await db.query(`
-            SELECT u.id, u.username, u.email, u.created_at,
-            (SELECT COUNT(*) FROM api_keys WHERE user_id = u.id) as total_keys
+        // 2. Active API Keys
+        const activeResult = await db.query(
+            "SELECT COUNT(*) AS total FROM api_keys WHERE is_active = 1"
+        );
+        const activeRows = getRows(activeResult);
+        const activeKeys = activeRows[0]?.total || 0;
+
+        // 3. Revoked API Keys
+        const revokedResult = await db.query(
+            "SELECT COUNT(*) AS total FROM api_keys WHERE is_active = 0"
+        );
+        const revokedRows = getRows(revokedResult);
+        const revokedKeys = revokedRows[0]?.total || 0;
+
+        // 4. Recent Users
+        const recentUsersResult = await db.query(`
+            SELECT 
+                u.id, u.username, u.email, u.created_at,
+                COUNT(k.id) AS total_keys
             FROM users u
-            ORDER BY u.created_at DESC LIMIT 10
+            LEFT JOIN api_keys k ON k.user_id = u.id
+            WHERE u.role = 'user' AND u.is_active = 1
+            GROUP BY u.id
+            ORDER BY u.created_at DESC
+            LIMIT 10
         `);
+        const users = getRows(recentUsersResult);
 
-        // 3. Ambil Log API Key Terbaru
-        const [keys] = await db.query(`
-            SELECT k.id, k.api_key, k.is_active, k.created_at, u.username as owner 
-            FROM api_keys k 
-            JOIN users u ON k.user_id = u.id 
-            ORDER BY k.created_at DESC LIMIT 10
+        // 5. API Keys Global
+        const keysResult = await db.query(`
+            SELECT 
+                k.id,
+                k.api_key,
+                k.is_active,
+                k.created_at,
+                COALESCE(u.username, 'System') AS owner
+            FROM api_keys k
+            LEFT JOIN users u ON u.id = k.user_id
+            ORDER BY k.created_at DESC
+            LIMIT 10
         `);
+        const keys = getRows(keysResult);
 
-        // 4. Kirim Response ke Frontend
         res.json({
+            status: 'success',
             stats: {
-                totalUsers: uCount[0].total || 0,
-                activeKeys: aKeys[0].total || 0,
-                revokedKeys: rKeys[0].total || 0
+                totalUsers,
+                activeKeys,
+                revokedKeys
             },
-            users: users,
-            keys: keys
+            users,
+            keys
         });
 
-    } catch (error) {
-        console.error("Admin API Error:", error.message);
-        res.status(500).json({ error: "Internal Server Error: " + error.message });
-    }
-});
-
-// Route Toggle API Key (Tambahan agar tombol di dashboard fungsi)
-router.put('/api-keys/:id/toggle', verifyToken, isAdmin, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const [current] = await db.query('SELECT is_active FROM api_keys WHERE id = ?', [id]);
-        
-        if (current.length === 0) return res.status(404).json({ error: 'Key not found' });
-
-        const newStatus = current[0].is_active === 1 ? 0 : 1;
-        await db.query('UPDATE api_keys SET is_active = ? WHERE id = ?', [newStatus, id]);
-
-        res.json({ success: true, message: 'Status updated' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            status: 'error',
+            message: err.message
+        });
     }
 });
 
