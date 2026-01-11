@@ -65,6 +65,7 @@ async function loadAdminDashboard() {
             renderKeys(result.keys);
         } else {
             console.error("API Error:", result.message || result.error);
+            alert("Error loading admin data: " + (result.error || result.message || "Unknown error"));
             // Jika token expired atau salah, arahkan ke login
             if (response.status === 401 || response.status === 403) {
                 alert("Sesi habis atau akses ditolak. Silakan login ulang.");
