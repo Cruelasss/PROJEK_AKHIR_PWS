@@ -3,53 +3,53 @@ const router = express.Router();
 const db = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 
-/* =======================
+/* =========================
    Middleware Admin
-======================= */
+========================= */
 const isAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') return next();
+    if (req.user && req.user.role === 'admin') {
+        return next();
+    }
     return res.status(403).json({
         status: 'error',
         message: 'Access denied: Admin only'
     });
 };
 
-/* =======================
+/* =========================
    Helper Ambil Rows Aman
-   (mysql2 / pool compatible)
-======================= */
+========================= */
 const getRows = (result) => {
     if (!result) return [];
-    if (Array.isArray(result)) return result[0] || [];
+    if (Array.isArray(result)) return result;
     if (result.rows) return result.rows;
     return [];
 };
 
-/* =======================
-   DASHBOARD STATS
-======================= */
+/* =========================
+   DASHBOARD STATS (TIDAK DIUBAH)
+========================= */
 router.get('/dashboard-stats', verifyToken, isAdmin, async (req, res) => {
     try {
-        // Total Users
         const usersResult = await db.query(
             "SELECT COUNT(*) AS total FROM users WHERE role = 'user' AND is_active = 1"
         );
-        const totalUsers = getRows(usersResult)[0]?.total || 0;
+        const usersRows = getRows(usersResult);
+        const totalUsers = usersRows[0]?.total || 0;
 
-        // Active Keys
         const activeResult = await db.query(
             "SELECT COUNT(*) AS total FROM api_keys WHERE is_active = 1"
         );
-        const activeKeys = getRows(activeResult)[0]?.total || 0;
+        const activeRows = getRows(activeResult);
+        const activeKeys = activeRows[0]?.total || 0;
 
-        // Revoked Keys
         const revokedResult = await db.query(
             "SELECT COUNT(*) AS total FROM api_keys WHERE is_active = 0"
         );
-        const revokedKeys = getRows(revokedResult)[0]?.total || 0;
+        const revokedRows = getRows(revokedResult);
+        const revokedKeys = revokedRows[0]?.total || 0;
 
-        // Recent Users
-        const usersResultList = await db.query(`
+        const recentUsersResult = await db.query(`
             SELECT 
                 u.id, u.username, u.email, u.created_at,
                 COUNT(k.id) AS total_keys
@@ -60,9 +60,8 @@ router.get('/dashboard-stats', verifyToken, isAdmin, async (req, res) => {
             ORDER BY u.created_at DESC
             LIMIT 10
         `);
-        const users = getRows(usersResultList);
+        const users = getRows(recentUsersResult);
 
-        // API Keys
         const keysResult = await db.query(`
             SELECT 
                 k.id,
@@ -83,54 +82,18 @@ router.get('/dashboard-stats', verifyToken, isAdmin, async (req, res) => {
             users,
             keys
         });
-
     } catch (err) {
         console.error(err);
         res.status(500).json({
             status: 'error',
-            message: 'Failed to load admin dashboard'
+            message: err.message
         });
     }
 });
 
-/* =======================
-   TOGGLE API KEY
-   (Revoke / Restore)
-======================= */
-router.put('/api-keys/:id/toggle', verifyToken, isAdmin, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const [rows] = await db.query(
-            "SELECT is_active FROM api_keys WHERE id = ?",
-            [id]
-        );
-
-        if (!rows || rows.length === 0) {
-            return res.status(404).json({ message: 'API Key tidak ditemukan' });
-        }
-
-        const newStatus = rows[0].is_active ? 0 : 1;
-
-        await db.query(
-            "UPDATE api_keys SET is_active = ? WHERE id = ?",
-            [newStatus, id]
-        );
-
-        res.json({
-            status: 'success',
-            message: newStatus ? 'API Key direstore' : 'API Key direvoke'
-        });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Gagal update API Key' });
-    }
-});
-
-/* =======================
-   BAN USER
-======================= */
+/* =====================================================
+   🔒 BAN USER (NEW – FRONTEND SUDAH SIAP)
+===================================================== */
 router.put('/users/:id/ban', verifyToken, isAdmin, async (req, res) => {
     try {
         const { id } = req.params;
@@ -144,10 +107,52 @@ router.put('/users/:id/ban', verifyToken, isAdmin, async (req, res) => {
             status: 'success',
             message: 'User berhasil diban'
         });
-
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'Gagal ban user' });
+        res.status(500).json({
+            status: 'error',
+            message: err.message
+        });
+    }
+});
+
+/* =====================================================
+   🔁 TOGGLE API KEY (REVOKE / RESTORE)
+===================================================== */
+router.put('/api-keys/:id/toggle', verifyToken, isAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await db.query(
+            "SELECT is_active FROM api_keys WHERE id = ?",
+            [id]
+        );
+
+        const rows = getRows(result);
+        if (rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'API key tidak ditemukan'
+            });
+        }
+
+        const newStatus = rows[0].is_active ? 0 : 1;
+
+        await db.query(
+            "UPDATE api_keys SET is_active = ? WHERE id = ?",
+            [newStatus, id]
+        );
+
+        res.json({
+            status: 'success',
+            message: newStatus ? 'API key direstore' : 'API key direvoke'
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            status: 'error',
+            message: err.message
+        });
     }
 });
 
