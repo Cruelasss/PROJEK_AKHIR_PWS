@@ -1,83 +1,88 @@
-// 1. Cek keamanan role admin (Client-side protection)
+/* =========================
+   Helper Token Aman
+========================= */
+function getAuthToken() {
+    let token = localStorage.getItem('token');
+    if (token && token.startsWith('{')) {
+        try {
+            token = JSON.parse(token).token || token;
+        } catch (e) {}
+    }
+    return token;
+}
+
+/* =========================
+   Cek Akses Admin (Client)
+========================= */
 function checkAdminAccess() {
     const userJson = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
 
-    // Cek keberadaan token
     if (!token || !userJson) {
-        console.warn("Akses ditolak: Token atau data user tidak ada di localStorage.");
-        window.location.href = 'index.html'; 
+        window.location.href = 'index.html';
         return false;
     }
 
     try {
         const userData = JSON.parse(userJson);
-        // Terkadang data user dibungkus dalam properti 'data' (sesuai respon login kamu)
         const user = userData.data ? userData.data : userData;
 
         if (user.role !== 'admin') {
-            alert("Akses Ditolak! Anda bukan admin.");
+            alert("Akses ditolak! Anda bukan admin.");
             window.location.href = 'dashboard.html';
             return false;
         }
 
         const nameEl = document.getElementById('adminName');
-        if (nameEl) nameEl.innerHTML = `<i class="fas fa-user-shield"></i> Welcome, ${user.username}`;
-        
+        if (nameEl) {
+            nameEl.innerHTML = `<i class="fas fa-user-shield"></i> Welcome, ${user.username}`;
+        }
+
         return true;
-    } catch (e) {
-        console.error("Error parsing user data:", e);
+    } catch (err) {
         window.location.href = 'index.html';
         return false;
     }
 }
 
-// 2. Fungsi utama untuk load data
+/* =========================
+   Load Dashboard Admin
+========================= */
 async function loadAdminDashboard() {
     if (!checkAdminAccess()) return;
-    
-    // Ambil token mentah
-    let token = localStorage.getItem('token');
 
-    // Jika token tersimpan sebagai object JSON (pernah kejadian di beberapa dev), ambil stringnya
-    if (token && token.startsWith('{')) {
-        try {
-            const tokenObj = JSON.parse(token);
-            token = tokenObj.token || token;
-        } catch(e) {}
-    }
+    const token = getAuthToken();
 
     try {
         const response = await fetch('/api/admin/dashboard-stats', {
             method: 'GET',
-            headers: { 
-                'Authorization': `Bearer ${token}`, // PENTING: Bearer[spasi]Token
+            headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
-        
+
         const result = await response.json();
 
         if (response.ok) {
-            // Pastikan mapping data sesuai dengan res.json backend kamu
             renderStats(result.stats);
             renderUsers(result.users);
             renderKeys(result.keys);
         } else {
-            console.error("API Error:", result.message || result.error);
-            alert("Error loading admin data: " + (result.error || result.message || "Unknown error"));
-            // Jika token expired atau salah, arahkan ke login
+            alert(result.message || 'Gagal memuat dashboard');
             if (response.status === 401 || response.status === 403) {
-                alert("Sesi habis atau akses ditolak. Silakan login ulang.");
                 handleLogout();
             }
         }
     } catch (err) {
-        console.error("Network Error:", err);
+        console.error(err);
+        alert('Kesalahan jaringan');
     }
 }
 
-// --- Fungsi Render tetap sama, pastikan ID di HTML cocok ---
+/* =========================
+   Render Statistik
+========================= */
 function renderStats(stats) {
     if (!stats) return;
     document.getElementById('statTotalUsers').textContent = stats.totalUsers || 0;
@@ -85,13 +90,18 @@ function renderStats(stats) {
     document.getElementById('statRevokedKeys').textContent = stats.revokedKeys || 0;
 }
 
+/* =========================
+   Render Users
+========================= */
 function renderUsers(users) {
     const table = document.getElementById('adminUserTable');
     if (!table) return;
+
     if (!Array.isArray(users) || users.length === 0) {
-        table.innerHTML = '<tr><td colspan="5" style="text-align:center">No users found</td></tr>';
+        table.innerHTML = `<tr><td colspan="5" style="text-align:center">No users found</td></tr>`;
         return;
     }
+
     table.innerHTML = users.map(u => `
         <tr>
             <td><strong>${u.username}</strong></td>
@@ -99,7 +109,9 @@ function renderUsers(users) {
             <td>${new Date(u.created_at).toLocaleDateString()}</td>
             <td>${u.total_keys || 0} Keys</td>
             <td>
-                <button onclick="handleBanUser(${u.id})" class="btn-action btn-ban" style="color:#ff4d4d">
+                <button class="btn-action btn-ban"
+                        onclick="handleBanUser(${u.id})"
+                        style="color:#ff4d4d">
                     <i class="fas fa-ban"></i> Ban
                 </button>
             </td>
@@ -107,17 +119,22 @@ function renderUsers(users) {
     `).join('');
 }
 
+/* =========================
+   Render API Keys
+========================= */
 function renderKeys(keys) {
     const table = document.getElementById('adminKeyTable');
     if (!table) return;
-    if (!keys || keys.length === 0) {
-        table.innerHTML = '<tr><td colspan="5" style="text-align:center">No API keys found</td></tr>';
+
+    if (!Array.isArray(keys) || keys.length === 0) {
+        table.innerHTML = `<tr><td colspan="5" style="text-align:center">No API keys found</td></tr>`;
         return;
     }
+
     table.innerHTML = keys.map(k => `
         <tr>
             <td>${k.owner || 'Unknown'}</td>
-            <td><code>${k.api_key ? k.api_key.substring(0, 15) : 'N/A'}...</code></td>
+            <td><code>${k.api_key.substring(0, 15)}...</code></td>
             <td>
                 <span class="status-pill ${k.is_active ? 'status-active' : 'status-revoked'}">
                     ${k.is_active ? 'Active' : 'Revoked'}
@@ -125,7 +142,8 @@ function renderKeys(keys) {
             </td>
             <td>${new Date(k.created_at).toLocaleDateString()}</td>
             <td>
-                <button onclick="toggleKeyStatus(${k.id})" class="btn-action">
+                <button class="btn-action"
+                        onclick="toggleKeyStatus(${k.id})">
                     <i class="fas ${k.is_active ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
                     ${k.is_active ? 'Revoke' : 'Restore'}
                 </button>
@@ -134,37 +152,73 @@ function renderKeys(keys) {
     `).join('');
 }
 
+/* =========================
+   Toggle API Key
+========================= */
 async function toggleKeyStatus(id) {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!confirm("Ubah status API Key ini?")) return;
 
     try {
         const response = await fetch(`/api/admin/api-keys/${id}/toggle`, {
             method: 'PUT',
-            headers: { 
+            headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
+
+        const result = await response.json();
+
         if (response.ok) {
             loadAdminDashboard();
         } else {
-            const res = await response.json();
-            alert("Gagal: " + (res.error || res.message));
+            alert(result.message || 'Gagal update API Key');
         }
     } catch (err) {
-        alert("Terjadi kesalahan jaringan.");
+        alert('Kesalahan jaringan');
     }
 }
 
-function handleBanUser(id) {
-    alert("Fitur Ban User (ID: " + id + ") segera hadir.");
+/* =========================
+   Ban User
+========================= */
+async function handleBanUser(id) {
+    const token = getAuthToken();
+    if (!confirm("Yakin ingin BAN user ini?")) return;
+
+    try {
+        const response = await fetch(`/api/admin/users/${id}/ban`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('User berhasil diban');
+            loadAdminDashboard();
+        } else {
+            alert(result.message || 'Gagal ban user');
+        }
+    } catch (err) {
+        alert('Kesalahan jaringan');
+    }
 }
 
+/* =========================
+   Logout
+========================= */
 function handleLogout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = 'index.html';
 }
 
+/* =========================
+   Init
+========================= */
 document.addEventListener('DOMContentLoaded', loadAdminDashboard);
