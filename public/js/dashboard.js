@@ -227,8 +227,7 @@ function updateEndpoint() {
         'currencies/history': {
             info: 'GET /api/currencies/history - Get historical rates',
             params: [
-                { name: 'from', type: 'text', placeholder: 'From' },
-                { name: 'to', type: 'text', placeholder: 'To' },
+                { name: 'base', type: 'text', placeholder: 'e.g., USD' },
                 { name: 'days', type: 'number', placeholder: '1-365' }
             ]
         },
